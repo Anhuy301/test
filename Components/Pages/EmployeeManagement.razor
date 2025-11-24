@@ -1,0 +1,207 @@
+﻿@page "/employees"
+@using Web_Test_DevExpress_ClaudeAI.Models
+@using Web_Test_DevExpress_ClaudeAI.Services
+@using Microsoft.AspNetCore.Components.Web
+@inject IEmployeeService EmployeeService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@rendermode @(new Microsoft.AspNetCore.Components.Web.InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Quản lý Nhân viên</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudPaper Elevation="2" Class="pa-4">
+        <MudText Typo="Typo.h4" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Group" Class="mr-2" />
+            Quản lý Nhân viên
+        </MudText>
+
+        <MudDivider Class="mb-4" />
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="searchString"
+                              Placeholder="Tìm kiếm theo tên, mã NV..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium"
+                              Class="mb-3"
+                              Immediate="true"
+                              OnKeyUp="@(async () => await LoadEmployees())" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="8" Class="d-flex justify-end align-center">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreateDialog">
+                    Thêm nhân viên mới
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @if (isLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+        }
+        else if (filteredEmployees == null || !filteredEmployees.Any())
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-4">
+                <MudText>Không tìm thấy nhân viên nào.</MudText>
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@filteredEmployees"
+                      Hover="true"
+                      Striped="true"
+                      Dense="true"
+                      Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Mã NV</MudTh>
+                    <MudTh>Họ và tên</MudTh>
+                    <MudTh>Phòng ban</MudTh>
+                    <MudTh>Chức vụ</MudTh>
+                    <MudTh>Điện thoại</MudTh>
+                    <MudTh>Email</MudTh>
+                    <MudTh>Ngày vào làm</MudTh>
+                    <MudTh>Trạng thái</MudTh>
+                    <MudTh Style="text-align: center;">Thao tác</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Mã NV">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.EmployeeCode</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Họ và tên">
+                        <MudText Typo="Typo.body2"><strong>@context.FullName</strong></MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Phòng ban">@context.Department</MudTd>
+                    <MudTd DataLabel="Chức vụ">@context.Position</MudTd>
+                    <MudTd DataLabel="Điện thoại">@context.PhoneNumber</MudTd>
+                    <MudTd DataLabel="Email">@context.Email</MudTd>
+                    <MudTd DataLabel="Ngày vào làm">@context.HireDate.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd DataLabel="Trạng thái">
+                        @if (context.IsActive)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Đang làm</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default">Đã nghỉ</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Thao tác" Style="text-align: center;">
+                        <MudTooltip Text="Chỉnh sửa">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => OpenEditDialog(context))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Xóa">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="@(() => DeleteEmployee(context))" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<Employee> employees = new();
+    private List<Employee> filteredEmployees = new();
+    private string searchString = "";
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmployees();
+    }
+
+    private async Task LoadEmployees()
+    {
+        isLoading = true;
+        employees = await EmployeeService.GetAllEmployeesAsync();
+        FilterEmployees();
+        isLoading = false;
+    }
+
+    private void FilterEmployees()
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+        {
+            filteredEmployees = employees;
+        }
+        else
+        {
+            var search = searchString.ToLower();
+            filteredEmployees = employees.Where(e =>
+                e.FullName.ToLower().Contains(search) ||
+                e.EmployeeCode.ToLower().Contains(search) ||
+                e.Department.ToLower().Contains(search) ||
+                e.Position.ToLower().Contains(search)
+            ).ToList();
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<EmployeeDialog>
+        {
+            { x => x.Employee, new Employee { HireDate = DateTime.Today, IsActive = true } },
+            { x => x.IsEdit, false }
+        };
+
+        var dialog = await DialogService.ShowAsync<EmployeeDialog>("Thêm nhân viên mới", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadEmployees();
+            Snackbar.Add("✅ Thêm nhân viên thành công!", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(Employee employee)
+    {
+        var parameters = new DialogParameters<EmployeeDialog>
+        {
+            { x => x.Employee, employee },
+            { x => x.IsEdit, true }
+        };
+
+        var dialog = await DialogService.ShowAsync<EmployeeDialog>("Chỉnh sửa nhân viên", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadEmployees();
+            Snackbar.Add("✅ Cập nhật nhân viên thành công!", Severity.Success);
+        }
+    }
+
+    private async Task DeleteEmployee(Employee employee)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Xác nhận xóa",
+            $"Bạn có chắc chắn muốn xóa nhân viên {employee.FullName}?",
+            yesText: "Xóa",
+            cancelText: "Hủy");
+
+        if (result == true)
+        {
+            var success = await EmployeeService.DeleteEmployeeAsync(employee.Id);
+            if (success)
+            {
+                await LoadEmployees();
+                Snackbar.Add("✅ Xóa nhân viên thành công!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("❌ Không thể xóa nhân viên!", Severity.Error);
+            }
+        }
+    }
+}
