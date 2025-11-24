@@ -1,0 +1,124 @@
+﻿@inject IEmployeeService EmployeeService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Employee.FullName"
+                                  Label="Họ và tên"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập họ tên"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Employee.EmployeeCode"
+                                  Label="Mã nhân viên"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập mã nhân viên"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Employee.Department"
+                                  Label="Phòng ban"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập phòng ban"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Employee.Position"
+                                  Label="Chức vụ"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập chức vụ"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Employee.PhoneNumber"
+                                  Label="Số điện thoại"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập số điện thoại"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Employee.Email"
+                                  Label="Email"
+                                  InputType="InputType.Email"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập email"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="hireDate"
+                                   Label="Ngày vào làm"
+                                   DateFormat="dd/MM/yyyy"
+                                   Required="true"
+                                   Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6" Class="d-flex align-center">
+                    <MudSwitch @bind-Value="Employee.IsActive"
+                               Color="Color.Success"
+                               Label="@(Employee.IsActive ? "Đang làm việc" : "Đã nghỉ việc")" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" Variant="Variant.Filled" Disabled="@(!success)">
+            @(IsEdit ? "Cập nhật" : "Thêm mới")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudBlazor.IDialogReference? MudDialog { get; set; }
+
+    [Parameter]
+    public Employee Employee { get; set; } = new();
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    private MudBlazor.MudForm form = default!;
+    private bool success;
+    private DateTime? hireDate;
+
+    protected override void OnInitialized()
+    {
+        hireDate = Employee.HireDate;
+    }
+
+    private async Task Submit()
+    {
+        await form.Validate();
+
+        if (success)
+        {
+            Employee.HireDate = hireDate ?? DateTime.Today;
+
+            if (IsEdit)
+            {
+                await EmployeeService.UpdateEmployeeAsync(Employee);
+            }
+            else
+            {
+                await EmployeeService.CreateEmployeeAsync(Employee);
+            }
+
+            MudDialog?.Close(MudBlazor.DialogResult.Ok(true));
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog?.Close(MudBlazor.DialogResult.Cancel());
+    }
+}
